@@ -10,11 +10,10 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-userSchema.pre("save", async function hashPassword(next) {
-  if (!this.isModified("password")) return next();
+userSchema.pre("save", async function hashPassword() {
+  if (!this.isModified("password")) return;
   const saltRounds = Number(process.env.BCRYPT_SALT_ROUNDS || 10);
   this.password = await bcrypt.hash(this.password, saltRounds);
-  return next();
 });
 
 userSchema.methods.comparePassword = function comparePassword(candidate) {
