@@ -3,6 +3,7 @@ const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
 const { scanFood } = require("../controllers/foodController");
+const auth = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -25,6 +26,6 @@ const storage = useMemoryStorage
 
 const upload = multer({ storage });
 
-router.post("/scan", upload.single("image"), scanFood);
+router.post("/scan", auth, upload.single("image"), scanFood);
 
 module.exports = router;

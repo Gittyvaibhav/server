@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const workoutPlanSchema = new mongoose.Schema(
   {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     goal: { type: String, required: true },
     experienceLevel: { type: String, required: true },
     daysPerWeek: { type: Number, required: true },

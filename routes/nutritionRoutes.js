@@ -1,8 +1,10 @@
 const express = require("express");
-const router = express.Router();
 const { createProfile, generateAIDietPlan } = require("../controllers/nutritionController");
+const auth = require("../middleware/auth");
 
-router.post("/profile", createProfile);
-router.post("/generate-plan", generateAIDietPlan);
+const router = express.Router();
+
+router.post("/profile", auth, createProfile);
+router.post("/generate-plan", auth, generateAIDietPlan);
 
 module.exports = router;

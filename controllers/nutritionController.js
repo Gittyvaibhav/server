@@ -39,17 +39,22 @@ exports.createProfile = async (req, res) => {
     goal
   );
 
-  const profile = new UserProfile({
-    weight,
-    height,
-    age,
-    gender,
-    activityLevel,
-    goal,
-    targetCalories,
-  });
-
-  await profile.save();
+  const profile = await UserProfile.findOneAndUpdate(
+    { userId: req.user.id },
+    {
+      $set: {
+        weight,
+        height,
+        age,
+        gender,
+        activityLevel,
+        goal,
+        targetCalories,
+      },
+      $setOnInsert: { userId: req.user.id },
+    },
+    { new: true, upsert: true }
+  );
 
   res.json(profile);
 };

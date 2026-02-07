@@ -50,7 +50,7 @@ const normalize = (value) => String(value || "").trim().toLowerCase();
 // POST: Save workout
 exports.saveWorkout = async (req, res) => {
   try {
-    const workout = new Workout(req.body);
+    const workout = new Workout({ ...req.body, userId: req.user.id });
     await workout.save();
     res.status(201).json(workout);
   } catch (error) {
@@ -61,7 +61,7 @@ exports.saveWorkout = async (req, res) => {
 // GET: Get all workouts
 exports.getWorkouts = async (req, res) => {
   try {
-    const workouts = await Workout.find().sort({ date: -1 });
+    const workouts = await Workout.find({ userId: req.user.id }).sort({ date: -1 });
     res.json(workouts);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -73,7 +73,14 @@ exports.startSession = async (req, res) => {
   try {
     const { exercise } = req.body;
     const sessionId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-    const workout = new Workout({ exercise, reps: 0, duration: 0, sessionId, status: 'active' });
+    const workout = new Workout({
+      exercise,
+      reps: 0,
+      duration: 0,
+      sessionId,
+      status: "active",
+      userId: req.user.id,
+    });
     await workout.save();
     res.status(201).json(workout);
   } catch (error) {
@@ -86,7 +93,11 @@ exports.updateSession = async (req, res) => {
   try {
     const { sessionId } = req.params;
     const updates = req.body; // e.g. { reps: 5, duration: 12 }
-    const workout = await Workout.findOneAndUpdate({ sessionId }, { $set: updates }, { new: true });
+    const workout = await Workout.findOneAndUpdate(
+      { sessionId, userId: req.user.id },
+      { $set: updates },
+      { new: true }
+    );
     if (!workout) return res.status(404).json({ error: 'Session not found' });
     res.json(workout);
   } catch (error) {
@@ -99,7 +110,11 @@ exports.completeSession = async (req, res) => {
   try {
     const { sessionId } = req.params;
     const updates = { status: 'completed', ...req.body };
-    const workout = await Workout.findOneAndUpdate({ sessionId }, { $set: updates }, { new: true });
+    const workout = await Workout.findOneAndUpdate(
+      { sessionId, userId: req.user.id },
+      { $set: updates },
+      { new: true }
+    );
     if (!workout) return res.status(404).json({ error: 'Session not found' });
     res.json(workout);
   } catch (error) {
@@ -116,7 +131,7 @@ exports.getWorkoutPlans = async (req, res) => {
     const safeLimit =
       Number.isFinite(limit) && limit > 0 && limit <= 100 ? limit : 20;
 
-    const filter = {};
+    const filter = { userId: req.user.id };
     if (req.query.goal) filter.goal = String(req.query.goal).toLowerCase();
     if (req.query.muscleGroup) {
       const raw = String(req.query.muscleGroup).toLowerCase();
@@ -166,8 +181,8 @@ exports.renameWorkoutPlan = async (req, res) => {
       return res.status(400).json({ error: "Title is required" });
     }
 
-    const updated = await WorkoutPlan.findByIdAndUpdate(
-      id,
+    const updated = await WorkoutPlan.findOneAndUpdate(
+      { _id: id, userId: req.user.id },
       { $set: { title: String(title).trim() } },
       { new: true }
     );
@@ -186,8 +201,8 @@ exports.toggleFavoriteWorkoutPlan = async (req, res) => {
     const nextValue =
       typeof favorite === "boolean" ? favorite : undefined;
 
-    const updated = await WorkoutPlan.findByIdAndUpdate(
-      id,
+    const updated = await WorkoutPlan.findOneAndUpdate(
+      { _id: id, userId: req.user.id },
       nextValue === undefined ? { $bit: { favorite: { xor: 1 } } } : { $set: { favorite: nextValue } },
       { new: true }
     );
@@ -202,7 +217,7 @@ exports.toggleFavoriteWorkoutPlan = async (req, res) => {
 exports.deleteWorkoutPlan = async (req, res) => {
   try {
     const { id } = req.params;
-    const deleted = await WorkoutPlan.findByIdAndDelete(id);
+    const deleted = await WorkoutPlan.findOneAndDelete({ _id: id, userId: req.user.id });
     if (!deleted) return res.status(404).json({ error: "Plan not found" });
     res.json({ success: true });
   } catch (error) {
@@ -412,6 +427,7 @@ Return ONLY valid JSON.`;
     }
     console.log("✓ Parsed workout plan successfully");
     const savedPlan = await WorkoutPlan.create({
+      userId: req.user.id,
       goal: normalizedGoal,
       experienceLevel: normalizedExperience,
       daysPerWeek: days,

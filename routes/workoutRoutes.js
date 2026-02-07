@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const auth = require("../middleware/auth");
 const {
   saveWorkout,
   getWorkouts,
@@ -12,6 +13,8 @@ const {
   updateSession,
   completeSession,
 } = require("../controllers/workoutController");
+
+router.use(auth);
 
 router.post("/", saveWorkout);
 router.get("/", getWorkouts);

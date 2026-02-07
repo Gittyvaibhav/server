@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: rekkethon-api
+    env: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Set these in Render dashboard (do not commit secrets):
+      # - key: MONGO_URI
+      # - key: JWT_SECRET
+      # - key: HF_TOKEN
+      # - key: HF_MODEL

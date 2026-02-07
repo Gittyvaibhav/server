@@ -13,13 +13,15 @@ app.use(express.urlencoded({ extended: true }));
 /* ----------- ROUTES ----------- */
 const safeUse = (mountPath, routePath) => {
   try {
-    app.use(mountPath, require(routePath));
+    const router = typeof routePath === "string" ? require(routePath) : routePath;
+    app.use(mountPath, router);
   } catch (err) {
     console.error(`Route loading error for ${mountPath}:`, err);
   }
 };
 
 safeUse("/api/nutrition", nutritionRoutes);
+safeUse("/api/users", "./routes/userRoutes");
 safeUse("/api/food", "./routes/foodRoutes");
 safeUse("/api/scan", "./routes/scanRoutes");
 safeUse("/api/workout", "./routes/workoutRoutes");
