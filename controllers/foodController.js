@@ -78,21 +78,69 @@ const estimateNutritionWithAI = async (client, label) => {
     `Food label: ${label}`,
   ].join("\n");
 
-  const response = await client.textGeneration({
-    model,
-    inputs: prompt,
-    parameters: {
-      max_new_tokens: 180,
-      temperature: 0.2,
-      return_full_text: false,
-    },
-  });
+  const lowerModel = (model || "").toLowerCase();
+  const taskOverride = (process.env.HF_NUTRITION_TASK || "").toLowerCase();
+  const useTextGeneration =
+    taskOverride === "text" ||
+    (taskOverride !== "chat" &&
+      (lowerModel.includes("gpt2") ||
+        lowerModel.includes("t5") ||
+        lowerModel.includes("flan")));
 
-  const generated =
-    response?.generated_text ||
-    response?.[0]?.generated_text ||
-    response?.output_text ||
-    "";
+  const runTextGeneration = async () => {
+    const response = await client.textGeneration({
+      model,
+      inputs: prompt,
+      parameters: {
+        max_new_tokens: 180,
+        temperature: 0.2,
+        return_full_text: false,
+      },
+    });
+    return (
+      response?.generated_text ||
+      response?.[0]?.generated_text ||
+      response?.output_text ||
+      ""
+    );
+  };
+
+  const runChatCompletion = async () => {
+    const completion = await client.chatCompletion({
+      model,
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 180,
+      temperature: 0.2,
+    });
+    return (
+      completion?.choices?.[0]?.message?.content ||
+      completion?.choices?.[0]?.delta?.content ||
+      ""
+    );
+  };
+
+  let generated = "";
+  try {
+    generated = useTextGeneration
+      ? await runTextGeneration()
+      : await runChatCompletion();
+  } catch (err) {
+    // Fallback to the other task if the provider rejects the first one.
+    const detailsText =
+      err?.response?.data || err?.message || "Unknown error";
+    const text =
+      typeof detailsText === "string"
+        ? detailsText
+        : JSON.stringify(detailsText);
+    const taskError = /task|unsupported|does not support/i.test(text);
+    if (taskError) {
+      generated = useTextGeneration
+        ? await runChatCompletion()
+        : await runTextGeneration();
+    } else {
+      throw err;
+    }
+  }
 
   const jsonText = extractJson(generated);
   if (!jsonText) return null;
@@ -232,6 +280,12 @@ exports.scanFood = async (req, res) => {
     // If we don't have a status-based hint, surface the provider error details
     if (!status && detailsText) {
       userMessage = detailsText;
+    }
+
+    if (/task|unsupported|does not support/i.test(detailsText)) {
+      userMessage =
+        "The configured nutrition model does not support the requested task. " +
+        "Set HF_NUTRITION_TASK=chat for chat-only models or HF_NUTRITION_TASK=text for text-generation models.";
     }
 
     const httpStatus = status || 500;
